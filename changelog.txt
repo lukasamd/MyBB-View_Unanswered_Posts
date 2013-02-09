@@ -1,0 +1,27 @@
+Version 1.4
+    * change license to LGPL v3
+    * change plugin sign in hooks  
+    * code cleanup      
+
+
+
+Version 1.3
+    * fix problem with functions names (conflict with View Unread Posts)
+
+
+
+Version 1.2
+    * rewrite to OOP
+    * add unanswered posts counter
+    * compatible with MyBB 1.6.5
+    * improve search security
+
+
+
+Version 1.1
+    * fix in Polish lang file
+
+
+
+Version 1.0
+    * first version
