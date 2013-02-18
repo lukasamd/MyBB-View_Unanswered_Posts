@@ -118,6 +118,7 @@ class unansweredPosts
 
         $plugins->hooks["search_start"][10]["unansweredPosts_doSearch"] = array("function" => create_function('', 'global $plugins; $plugins->objects[\'unansweredPosts\']->doSearch();'));
         $plugins->hooks["pre_output_page"][10]["unansweredPosts_modifyOutput"] = array("function" => create_function('&$arg', 'global $plugins; $plugins->objects[\'unansweredPosts\']->modifyOutput($arg);'));
+        $plugins->hooks["pre_output_page"][10]["unansweredPosts_pluginThanks"] = array("function" => create_function('&$arg', 'global $plugins; $plugins->objects[\'unansweredPosts\']->pluginThanks($arg);')); 
     }
 
     /**
@@ -471,6 +472,23 @@ class unansweredPosts
         global $mybb;
 
         return $mybb->settings["unansweredPosts{$name}"];
+    }
+    
+    /**
+     * Say thanks to plugin author - paste link to author website.
+     * Please don't remove this code if you didn't make donate
+     * It's the only way to say thanks without donate :)     
+     */
+    public function pluginThanks(&$content)
+    {
+        global $session, $lukasamd_thanks;
+        
+        if (!isset($lukasamd_thanks) && $session->is_spider)
+        {
+            $thx = '<div style="margin:auto; text-align:center;">This forum uses <a href="http://lukasztkacz.com">Lukasz Tkacz</a> MyBB addons.</div></body>';
+            $content = str_replace('</body>', $thx, $content);
+            $lukasamd_thanks = true;
+        }
     }
 
 }
