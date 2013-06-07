@@ -1,3 +1,9 @@
+Version 1.5:
+    * Optimizations
+    * Add limiter to query
+
+
+
 Version 1.4
     * change license to LGPL v3
     * change plugin sign in hooks  
