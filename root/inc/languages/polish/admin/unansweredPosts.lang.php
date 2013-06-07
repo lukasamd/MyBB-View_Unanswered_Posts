@@ -32,5 +32,8 @@ $l['unansweredPostsStatusCounterDesc'] = 'Dodaje przy linku licznik tematów bez
 $l['unansweredPostsStatusCounterHide'] = 'Ukrywanie linku gdy nie ma tematów bez odpowiedzi';
 $l['unansweredPostsStatusCounterHideDesc'] = 'Ta opcja powoduje ukrywanie linku do szukania tematów bez odpowiedzi postów, gdy takowe nie istnieją. Działa tylko gdy włączono licznik tematów bez odpowiedzi.';
 
+$l['unansweredPostsLimit'] = 'Limit wyników dla licznika';
+$l['unansweredPostsLimitDesc'] = 'Limit wyników zapytania szukającego tematów bez odpowiedzi dla licznika.<br /> Zalecana wartość 500 lub mniej - powyżej 10000 będzie automatycznie ograniczane do 500.<br /> Jeżeli wyszukiwarka znajdzie więcej wyników, wyświetli w liczniku informację typu "500+".';
+
 $l['unansweredPostsCounterPages'] = 'Podstrony z aktywnym licznikiem tematów bez odpowiedzi';
 $l['unansweredPostsCounterPagesDesc'] = 'Kody podstron (stała THIS_SCRIPT), na których licznik ma być aktywny. W wypadku braku zawartości licznik będzie aktywny na wszystkich stronach.';

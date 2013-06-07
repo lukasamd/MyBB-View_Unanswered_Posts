@@ -31,6 +31,9 @@ $l['unansweredPostsStatusCounterDesc'] = 'Add a unanswered posts counter near th
 
 $l['unansweredPostsStatusCounterHide'] = 'Hide "View unanswered posts" link, when there are no unread';
 $l['unansweredPostsStatusCounterHideDesc'] = 'This option hides url for searching unanswered posts, when there are not unanswered posts. Works only then "Unanswered posts counter" is enabled.';
+ 
+$l['unansweredPostsLimit'] = 'Results limit for counter';
+$l['unansweredPostsLimitDesc'] = 'Limit query results looking for unanswered posts for the counter.<br /> The recommended value is 500 or less – more than 10000 will be automatically reduced to 500.<br /> If the search finds more results, it will display information like "500 +".';
 
 $l['unansweredPostsCounterPages'] = 'Subpages with active unanswered posts counter';
 $l['unansweredPostsCounterPagesDesc'] = 'Pages-codes (THIS_SCRIPT constant), on which the unanswered posts counter will be active active. If not specified, the counter will be active on all pages.';

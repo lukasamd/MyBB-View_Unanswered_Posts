@@ -53,7 +53,7 @@ function unansweredPosts_info()
         'website' => 'http://lukasztkacz.com',
         'author' => 'Lukasz Tkacz',
         'authorsite' => 'http://lukasztkacz.com',
-        'version' => '1.4',
+        'version' => '1.5',
         'guid' => '296b5c7da4995c4fca95bcc252959071',
         'compatibility' => '16*'
     );
@@ -109,8 +109,12 @@ function unansweredPosts_deactivate()
 class unansweredPosts
 {
 
+    // SQL Where Statement
+    private $where = '';
+    
     /**
      * Constructor - add plugin hooks
+     *      
      */
     public function __construct()
     {
@@ -123,6 +127,7 @@ class unansweredPosts
 
     /**
      * Change links action from lastpost to unread and display link to search unreads
+     *      
      */
     public function modifyOutput(&$content)
     {
@@ -135,38 +140,50 @@ class unansweredPosts
             return false;
         }
 
-        // Counter is not enable, display standard link
+        // Prepare sql statements
+        $this->buildSQLWhere();
+
+        // Make a query to calculate unread posts
+        $sql = "SELECT 1
+                FROM " . TABLE_PREFIX . "threads 
+                WHERE {$this->where}
+                LIMIT " . $this->buildSQLLimit();  
+        $result = $db->query($sql);
+        $numThreads = (int) $db->num_rows($result);
+        
+        // Change counter
+        if ($numThreads > $this->limit)
+        {
+            $numThreads = ($numThreads - 1) . '+';
+        }
+        
+        // Hide link
+        if ($this->getConfig('StatusCounterHide') && $numThreads == 0)
+        {
+            return;
+        }
+
+        // Link without counter
         if (!$this->getConfig('StatusCounter') || !$this->isPageCounterAllowed())
         {
             eval("\$unansweredPosts .= \"" . $templates->get("unansweredPosts_link") . "\";");
             $content = str_replace('<!-- UNANSWEREDPOSTS_LINK -->', $unansweredPosts, $content);
-            return false;
+            return;
         }
 
-        // Prepare sql statements
-        $this->where = '';
-        $this->getStandardWhere();
-        $this->getExceptions();
-        $this->getPermissions();
-        $this->getUnsearchableForums();
-        $this->getInactiveForums();
-
-        // Make a query to calculate unread posts
-        $sql = "SELECT COUNT(tid) AS num_threads
-                FROM " . TABLE_PREFIX . "threads 
-                WHERE {$this->where}";
-        $result = $db->query($sql);
-        $numThreads = (int) $db->fetch_field($result, "num_threads");
-
-        // Check numer of unread and couter visible setting
+        // Link with counter
         eval("\$unansweredPostsCounter .= \"" . $templates->get("unansweredPosts_counter") . "\";");
-        if ($numThreads > 0 || $this->getConfig('StatusCounterHide') == 0)
+        if ($numUnreads > 0 || $this->getConfig('StatusCounterHide') == 0)
         {
             eval("\$unansweredPosts .= \"" . $templates->get("unansweredPosts_linkCounter") . "\";");
             $content = str_replace('<!-- UNANSWEREDPOSTS_LINK -->', $unansweredPosts, $content);
         }
     }
-
+    
+    /**
+     * Search for unanswered threads ids
+     *      
+     */
     public function doSearch()
     {
         global $db, $lang, $mybb, $plugins, $session;
@@ -177,19 +194,14 @@ class unansweredPosts
         }
 
         // Prepare sql statements
-        $this->where = '';
-        $this->getStandardWhere();
-        $this->getExceptions();
-        $this->getPermissions();
-        $this->getUnsearchableForums();
-        $this->getInactiveForums();
+        $this->buildSQLWhere();
 
         // Make a query to search unanswered topics
         $sql = "SELECT tid
             FROM " . TABLE_PREFIX . "threads 
             WHERE {$this->where}
             ORDER BY dateline DESC
-            LIMIT 1000";
+            LIMIT 500";
         $result = $db->query($sql);
 
         // Build a unanswered topics list 
@@ -252,186 +264,34 @@ class unansweredPosts
 
         return false;
     }
-
+    
     /**
-     * Get standard SQL WHERE statement - closed and moved threads are not allowed
+     * Prepare WHERE statement for unread posts search query
+     *      
      */
-    private function getStandardWhere()
+    private function buildSQLWhere()
     {
-        $this->where .= "replies = 0 AND visible = 1 AND closed NOT LIKE 'moved|%'";
-    }
-
-    /**
-     * Get all forums exceptions to SQL WHERE statement
-     */
-    private function getExceptions()
-    {
-        if ($this->getConfig('Exceptions') == '')
+        if ($this->where != '')
         {
             return;
-        }
-
-        $exceptions_list = explode(',', $this->getConfig('Exceptions'));
-        $exceptions_list = array_map('intval', $exceptions_list);
-
-        if (sizeof($exceptions_list) > 0)
+        }        
+    
+        // Standard where
+        $this->where .= "replies = 0 AND visible = 1 AND closed NOT LIKE 'moved|%'";
+    
+        // Exceptions
+        if ($this->getConfig('Exceptions') != '')
         {
-            $this->where .= " AND fid NOT IN (" . implode(',', $exceptions_list) . ")";
-        }
-    }
-
-    /**
-     * Build a comma separated list of the forums this user cannot search
-     *
-     * @param int The parent ID to build from
-     * @param int First rotation or not (leave at default)
-     * @return return a CSV list of forums the user cannot search
-     */
-    private function getUnsearchableForums($pid="0", $first=1)
-    {
-        global $db, $forum_cache, $permissioncache, $mybb, $unsearchableforums, $unsearchable, $templates, $forumpass;
-
-        $pid = intval($pid);
-
-        if (!is_array($forum_cache))
-        {
-            // Get Forums
-            $query = $db->simple_select("forums", "fid,parentlist,password,active", '', array('order_by' => 'pid, disporder'));
-            while ($forum = $db->fetch_array($query))
+            $exceptions_list = explode(',', $this->getConfig('Exceptions'));
+            $exceptions_list = array_map('intval', $exceptions_list);
+    
+            if (sizeof($exceptions_list) > 0)
             {
-                $forum_cache[$forum['fid']] = $forum;
+                $this->where .= " AND fid NOT IN (" . implode(',', $exceptions_list) . ")";
             }
         }
 
-
-        if (THIS_SCRIPT == 'index.php')
-        {
-            $permissioncache = false;
-        }
-
-        if (!is_array($permissioncache))
-        {
-            $permissioncache = forum_permissions();
-        }
-
-        foreach ($forum_cache as $fid => $forum)
-        {
-            if ($permissioncache[$forum['fid']])
-            {
-                $perms = $permissioncache[$forum['fid']];
-            }
-            else
-            {
-                $perms = $mybb->usergroup;
-            }
-
-            $pwverified = 1;
-            if ($forum['password'] != '')
-            {
-                if ($mybb->cookies['forumpass'][$forum['fid']] != md5($mybb->user['uid'] . $forum['password']))
-                {
-                    $pwverified = 0;
-                }
-            }
-
-            $parents = explode(",", $forum['parentlist']);
-            if (is_array($parents))
-            {
-                foreach ($parents as $parent)
-                {
-                    if ($forum_cache[$parent]['active'] == 0)
-                    {
-                        $forum['active'] = 0;
-                    }
-                }
-            }
-
-            if ($perms['canview'] != 1 || $perms['cansearch'] != 1 || $pwverified == 0 || $forum['active'] == 0)
-            {
-                if ($unsearchableforums)
-                {
-                    $unsearchableforums .= ",";
-                }
-                $unsearchableforums .= "'{$forum['fid']}'";
-            }
-        }
-        $unsearchable = $unsearchableforums;
-
-        // Get our unsearchable password protected forums
-        $pass_protected_forums = $this->getPasswordProtectedForums();
-
-        if ($unsearchable && $pass_protected_forums)
-        {
-            $unsearchable .= ",";
-        }
-
-        if ($pass_protected_forums)
-        {
-            $unsearchable .= implode(",", $pass_protected_forums);
-        }
-
-        if ($unsearchable)
-        {
-            $this->where .= " AND fid NOT IN ($unsearchable)";
-        }
-    }
-
-    /**
-     * Build a array list of the forums this user cannot search due to password protection
-     *
-     * @param int the fids to check (leave null to check all forums)
-     * @return return a array list of password protected forums the user cannot search
-     */
-    private function getPasswordProtectedForums($fids=array())
-    {
-        global $forum_cache, $mybb;
-
-        if (!is_array($fids))
-        {
-            return false;
-        }
-
-        if (!is_array($forum_cache))
-        {
-            $forum_cache = cache_forums();
-            if (!$forum_cache)
-            {
-                return false;
-            }
-        }
-
-        if (empty($fids))
-        {
-            $fids = array_keys($forum_cache);
-        }
-
-        $pass_fids = array();
-        foreach ($fids as $fid)
-        {
-            if (empty($forum_cache[$fid]['password']))
-            {
-                continue;
-            }
-
-            if (md5($mybb->user['uid'] . $forum_cache[$fid]['password']) != $mybb->cookies['forumpass'][$fid])
-            {
-                $pass_fids[] = $fid;
-                $child_list = get_child_list($fid);
-            }
-
-            if (is_array($child_list))
-            {
-                $pass_fids = array_merge($pass_fids, $child_list);
-            }
-        }
-        return array_unique($pass_fids);
-    }
-
-    /**
-     * Get all forums premissions to SQL WHERE statement
-     */
-    private function getPermissions()
-    {
+        // Permissions
         $onlyusfids = array();
 
         // Check group permissions if we can't view threads not started by us
@@ -447,18 +307,46 @@ class unansweredPosts
         {
             $this->where .= " AND ((fid IN(" . implode(',', $onlyusfids) . ") AND uid='{$mybb->user['uid']}') OR fid NOT IN(" . implode(',', $onlyusfids) . "))";
         }
-    }
-
-    /**
-     * Get all inactive forums
-     */
-    private function getInactiveForums()
-    {
+        
+        // Unsearchable forums
+        if (!function_exists('get_unsearchable_forums'))
+        {
+            require_once MYBB_ROOT."inc/functions_search.php";
+            $unsearchforums = get_unsearchable_forums();
+            if ($unsearchforums)
+            {
+                $this->where .= " AND fid NOT IN ($unsearchforums)";
+            }
+        }
+        
+        // Inactive forums
         $inactiveforums = get_inactive_forums();
         if ($inactiveforums)
         {
             $this->where .= " AND fid NOT IN ($inactiveforums)";
         }
+    }
+    
+    /**
+     * Prepare LIMIT for search query
+     *      
+     */
+    private function buildSQLLimit()
+    {
+        if (!$this->getConfig('StatusCounter'))
+        {
+            $this->limit = 1;
+            return 1;        
+        }
+    
+        $limit = (int) $this->getConfig('Limit');
+        if (!$limit || $limit > 10000)
+        {
+            $limit = 500;
+        }
+        
+        $this->limit = $limit;
+        return $limit + 1;
     }
 
     /**
